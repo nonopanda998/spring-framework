@@ -240,19 +240,24 @@ public class AutowiredAnnotationBeanPostProcessor implements SmartInstantiationA
 		this.beanFactory = (ConfigurableListableBeanFactory) beanFactory;
 	}
 
-
+	//后置处理，合并Bean的定义，合并前进行自动注入查找和bean定义属性的检查
 	@Override
 	public void postProcessMergedBeanDefinition(RootBeanDefinition beanDefinition, Class<?> beanType, String beanName) {
 		InjectionMetadata metadata = findAutowiringMetadata(beanName, beanType, null);
 		metadata.checkConfigMembers(beanDefinition);
 	}
 
+
+	//重置bean定义
 	@Override
 	public void resetBeanDefinition(String beanName) {
 		this.lookupMethodsChecked.remove(beanName);
 		this.injectionMetadataCache.remove(beanName);
 	}
 
+	/**
+	 *	候选构造函数确定的方法，放回对应候选的构造函数
+	 */
 	@Override
 	@Nullable
 	public Constructor<?>[] determineCandidateConstructors(Class<?> beanClass, final String beanName)
@@ -422,6 +427,10 @@ public class AutowiredAnnotationBeanPostProcessor implements SmartInstantiationA
 	 * @param bean the target instance to process
 	 * @throws BeanCreationException if autowiring failed
 	 * @see #setAutowiredAnnotationTypes(Set)
+	 *
+	 *
+	 *
+	 * 处理注入的方法，即类注入方法！！！！！！
 	 */
 	public void processInjection(Object bean) throws BeanCreationException {
 		Class<?> clazz = bean.getClass();
@@ -439,6 +448,9 @@ public class AutowiredAnnotationBeanPostProcessor implements SmartInstantiationA
 	}
 
 
+	/**
+	 * 	查找自动注入的class成员属性
+	 */
 	private InjectionMetadata findAutowiringMetadata(String beanName, Class<?> clazz, @Nullable PropertyValues pvs) {
 		// Fall back to class name as cache key, for backwards compatibility with custom callers.
 		String cacheKey = (StringUtils.hasLength(beanName) ? beanName : clazz.getName());
@@ -451,7 +463,9 @@ public class AutowiredAnnotationBeanPostProcessor implements SmartInstantiationA
 					if (metadata != null) {
 						metadata.clear(pvs);
 					}
+					//构建自动注入的成员字节码
 					metadata = buildAutowiringMetadata(clazz);
+					//将需要注入的数据放入缓存中
 					this.injectionMetadataCache.put(cacheKey, metadata);
 				}
 			}
@@ -459,6 +473,7 @@ public class AutowiredAnnotationBeanPostProcessor implements SmartInstantiationA
 		return metadata;
 	}
 
+	//构造需要自动注入的数据
 	private InjectionMetadata buildAutowiringMetadata(final Class<?> clazz) {
 		if (!AnnotationUtils.isCandidateClass(clazz, this.autowiredAnnotationTypes)) {
 			return InjectionMetadata.EMPTY;
@@ -470,7 +485,10 @@ public class AutowiredAnnotationBeanPostProcessor implements SmartInstantiationA
 		do {
 			final List<InjectionMetadata.InjectedElement> currElements = new ArrayList<>();
 
+			//Autowire写在字段上的处理逻辑
+			//反射工具类，执行给定的匿名内部类中的方法，即这里会检查自动装配的属性并将需要装配的元素添加进 currElements 集合中
 			ReflectionUtils.doWithLocalFields(targetClass, field -> {
+				//自动装配注解查找
 				MergedAnnotation<?> ann = findAutowiredAnnotation(field);
 				if (ann != null) {
 					if (Modifier.isStatic(field.getModifiers())) {
@@ -479,32 +497,45 @@ public class AutowiredAnnotationBeanPostProcessor implements SmartInstantiationA
 						}
 						return;
 					}
+					//是否必须注入的状态检查，required=true 则必须注入，没有注入的话会抛出异常，否则不必要注入则跳过
 					boolean required = determineRequiredStatus(ann);
+
+					//将需要自动注入的元素字段添加到集合中
 					currElements.add(new AutowiredFieldElement(field, required));
 				}
 			});
 
+			//Autowire写在方法上的处理逻辑，将targetClass类中的所有方法执行内部类的处理逻辑
 			ReflectionUtils.doWithLocalMethods(targetClass, method -> {
+				//查找匹配的方法
 				Method bridgedMethod = BridgeMethodResolver.findBridgedMethod(method);
+				//方法不可见跳过
 				if (!BridgeMethodResolver.isVisibilityBridgeMethodPair(method, bridgedMethod)) {
 					return;
 				}
+				//查找方法上的注入注解
 				MergedAnnotation<?> ann = findAutowiredAnnotation(bridgedMethod);
+				//Autowire注解不为空并且方法一致。这里不支持静态方法，切参数不能为空
 				if (ann != null && method.equals(ClassUtils.getMostSpecificMethod(method, clazz))) {
+					//方法参数不能是静态方法
 					if (Modifier.isStatic(method.getModifiers())) {
 						if (logger.isInfoEnabled()) {
 							logger.info("Autowired annotation is not supported on static methods: " + method);
 						}
 						return;
 					}
+					//方法参数不能为空
 					if (method.getParameterCount() == 0) {
 						if (logger.isInfoEnabled()) {
 							logger.info("Autowired annotation should only be used on methods with parameters: " +
 									method);
 						}
 					}
+					//是否必须注入的状态检查，required=true 则必须注入，没有注入的话会抛出异常，否则不必要注入则跳过
 					boolean required = determineRequiredStatus(ann);
+					//通过内省来查找对应的getter 或者 setter 方法，查到则 pd 有值否则为null
 					PropertyDescriptor pd = BeanUtils.findPropertyForMethod(bridgedMethod, clazz);
+					//保存获取到的 内省 对象到 currElements 中
 					currElements.add(new AutowiredMethodElement(method, required, pd));
 				}
 			});
@@ -512,8 +543,10 @@ public class AutowiredAnnotationBeanPostProcessor implements SmartInstantiationA
 			elements.addAll(0, currElements);
 			targetClass = targetClass.getSuperclass();
 		}
+		//父类不为空 并且父类不是Object对象，则去解析对应class的父类，并将其需要注入的属性添加进 currElements ArrayList集合中
 		while (targetClass != null && targetClass != Object.class);
 
+		//将类可能存在的自动注入元素和对应的类字节码，封装 “InjectionMetadata” 并且返回，如果为空则返回空对象
 		return InjectionMetadata.forElements(elements, clazz);
 	}
 
