@@ -68,6 +68,7 @@ public interface AutowireCapableBeanFactory extends BeanFactory {
 	 * @see #autowire
 	 * @see #autowireBeanProperties
 	 */
+	// 常量，用于标识外部自动装配功能是否可用。但是此标识不影响正常的（基于注解的等）自动装配功能的使用
 	int AUTOWIRE_NO = 0;
 
 	/**
@@ -77,6 +78,7 @@ public interface AutowireCapableBeanFactory extends BeanFactory {
 	 * @see #autowire
 	 * @see #autowireBeanProperties
 	 */
+	//常量，标识按名称装配
 	int AUTOWIRE_BY_NAME = 1;
 
 	/**
@@ -86,6 +88,7 @@ public interface AutowireCapableBeanFactory extends BeanFactory {
 	 * @see #autowire
 	 * @see #autowireBeanProperties
 	 */
+	//指示按类型自动装配Bean属性的常量
 	int AUTOWIRE_BY_TYPE = 2;
 
 	/**
@@ -94,6 +97,7 @@ public interface AutowireCapableBeanFactory extends BeanFactory {
 	 * @see #createBean
 	 * @see #autowire
 	 */
+	//标识按照贪婪策略匹配出的最符合的构造方法来自动装配的常量
 	int AUTOWIRE_CONSTRUCTOR = 3;
 
 	/**
@@ -104,6 +108,8 @@ public interface AutowireCapableBeanFactory extends BeanFactory {
 	 * @deprecated as of Spring 3.0: If you are using mixed autowiring strategies,
 	 * prefer annotation-based autowiring for clearer demarcation of autowiring needs.
 	 */
+	//指示通过内省bean类确定适当的自动装配策略的常数。
+	// 从Spring 3.0开始不推荐使用：如果您使用混合自动装配策略，则更希望使用基于注释的自动装配来更清楚地划分自动装配需求。
 	@Deprecated
 	int AUTOWIRE_AUTODETECT = 4;
 
@@ -117,6 +123,8 @@ public interface AutowireCapableBeanFactory extends BeanFactory {
 	 * @see #applyBeanPostProcessorsBeforeInitialization(Object, String)
 	 * @see #applyBeanPostProcessorsAfterInitialization(Object, String)
 	 */
+	//初始化现有bean实例时，“原始实例”约定的后缀：将附加到完全限定的bean类名，
+	//例如“ com.mypackage.MyClass.ORIGINAL”，以便强制返回给定的实例，即没有代理等
 	String ORIGINAL_INSTANCE_SUFFIX = ".ORIGINAL";
 
 
@@ -136,6 +144,10 @@ public interface AutowireCapableBeanFactory extends BeanFactory {
 	 * @return the new bean instance
 	 * @throws BeansException if instantiation or wiring failed
 	 */
+	//完全创建给定类的新bean实例。
+	//执行Bean的完全初始化，包括所有适用的BeanPostProcessors 。
+	//注意：这用于创建一个新的实例，填充带注释的字段和方法，以及应用所有标准的bean初始化回调。
+	//这并不意味着传统的名称或类型属性的自动装配;
 	<T> T createBean(Class<T> beanClass) throws BeansException;
 
 	/**
@@ -148,6 +160,12 @@ public interface AutowireCapableBeanFactory extends BeanFactory {
 	 * @param existingBean the existing bean instance
 	 * @throws BeansException if wiring failed
 	 */
+
+	//自动注入的bean实例将通过此方法进行实例化。
+	//完全创建给定类的新bean实例。
+	//执行Bean的完全初始化，包括所有适用的BeanPostProcessors 。
+	//注意：这用于创建一个新的实例，填充带注释的字段和方法，以及应用所有标准的bean初始化回调。
+	//这并不意味着传统的名称或类型属性的自动装配;
 	void autowireBean(Object existingBean) throws BeansException;
 
 	/**

@@ -397,6 +397,7 @@ public class AutowiredAnnotationBeanPostProcessor implements SmartInstantiationA
 		return (candidateConstructors.length > 0 ? candidateConstructors : null);
 	}
 
+	//后置属性处理
 	@Override
 	public PropertyValues postProcessProperties(PropertyValues pvs, Object bean, String beanName) {
 		InjectionMetadata metadata = findAutowiringMetadata(beanName, bean.getClass(), pvs);
@@ -656,30 +657,37 @@ public class AutowiredAnnotationBeanPostProcessor implements SmartInstantiationA
 			this.required = required;
 		}
 
+
+		//字段注入方法。从BeanFactory中
 		@Override
 		protected void inject(Object bean, @Nullable String beanName, @Nullable PropertyValues pvs) throws Throwable {
 			Field field = (Field) this.member;
 			Object value;
 			if (this.cached) {
+				//缓存参数解析
 				value = resolvedCachedArgument(beanName, this.cachedFieldValue);
 			}
 			else {
+				//无缓存 就去解决依赖
 				DependencyDescriptor desc = new DependencyDescriptor(field, this.required);
 				desc.setContainingClass(bean.getClass());
 				Set<String> autowiredBeanNames = new LinkedHashSet<>(1);
 				Assert.state(beanFactory != null, "No BeanFactory available");
 				TypeConverter typeConverter = beanFactory.getTypeConverter();
 				try {
+					//解决依赖问题
 					value = beanFactory.resolveDependency(desc, beanName, autowiredBeanNames, typeConverter);
 				}
 				catch (BeansException ex) {
 					throw new UnsatisfiedDependencyException(null, beanName, new InjectionPoint(field), ex);
 				}
+				//同步锁
 				synchronized (this) {
 					if (!this.cached) {
 						Object cachedFieldValue = null;
 						if (value != null || this.required) {
 							cachedFieldValue = desc;
+							//将指定的bean注册为依赖于自动装配的bean。
 							registerDependentBeans(beanName, autowiredBeanNames);
 							if (autowiredBeanNames.size() == 1) {
 								String autowiredBeanName = autowiredBeanNames.iterator().next();
@@ -720,6 +728,7 @@ public class AutowiredAnnotationBeanPostProcessor implements SmartInstantiationA
 			this.required = required;
 		}
 
+		//方法解析注入
 		@Override
 		protected void inject(Object bean, @Nullable String beanName, @Nullable PropertyValues pvs) throws Throwable {
 			if (checkPropertySkipping(pvs)) {

@@ -18,6 +18,8 @@ package org.springframework.core;
 
 import org.springframework.lang.Nullable;
 
+import java.util.concurrent.Callable;
+
 /**
  * Handy class for wrapping runtime {@code Exceptions} with a root cause.
  *
@@ -39,6 +41,7 @@ import org.springframework.lang.Nullable;
 public abstract class NestedRuntimeException extends RuntimeException {
 
 	/** Use serialVersionUID from Spring 1.2 for interoperability. */
+
 	private static final long serialVersionUID = 5439915454935047936L;
 
 	static {
@@ -46,7 +49,6 @@ public abstract class NestedRuntimeException extends RuntimeException {
 		// issues on OSGi when calling getMessage(). Reported by Don Brown; SPR-5607.
 		NestedExceptionUtils.class.getName();
 	}
-
 
 	/**
 	 * Construct a {@code NestedRuntimeException} with the specified detail message.
